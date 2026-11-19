@@ -2,10 +2,12 @@ import cors from 'cors';
 import { sql } from 'drizzle-orm';
 import express from 'express';
 import { db } from './config/db';
+import { frontendOrigin } from './config/env';
+import { authRouter } from './routes/auth.routes';
 
 const app = express();
 
-app.use(cors({ origin: /^http:\/\/localhost:5173$/ }));
+app.use(cors({ origin: frontendOrigin || false, credentials: true }));
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => {
@@ -20,5 +22,7 @@ app.get('/api/db-health', async (_req, res) => {
     res.status(503).json({ status: 'unavailable' });
   }
 });
+
+app.use('/api/auth', authRouter);
 
 export default app;
