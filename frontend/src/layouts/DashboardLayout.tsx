@@ -6,9 +6,12 @@ import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '../components/dashboard/DashboardSidebar';
 import './dashboard.css';
 
+export type DashboardOutletContext = { setHasUnsavedChanges: (dirty: boolean) => void };
+
 export function DashboardLayout() {
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const reducedMotion = useReducedMotion();
   const drawer = useRef<HTMLDialogElement>(null);
 
@@ -50,9 +53,9 @@ export function DashboardLayout() {
         <DashboardSidebar user={user} onClose={closeDrawer} />
       </dialog>
       <div className="dashboard-body">
-        <DashboardHeader user={user} onOpenNavigation={() => drawer.current?.showModal()} />
+        <DashboardHeader user={user} hasUnsavedChanges={hasUnsavedChanges} onOpenNavigation={() => drawer.current?.showModal()} />
         <main className="dashboard-main" id="dashboard-main" tabIndex={-1}>
-          <Outlet />
+          <Outlet context={{ setHasUnsavedChanges } satisfies DashboardOutletContext} />
         </main>
       </div>
     </div>

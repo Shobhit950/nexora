@@ -1,7 +1,7 @@
 ﻿import { Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, CircleMinus, FileText, Grid2X2, List, ListFilter, Plus, Search, Workflow as WorkflowIcon, X, Zap } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { authError } from '../auth/api';
 import { Dropdown, type DropdownOption } from '../components/Dropdown';
 import { moveSpotlight } from '../components/dashboard/spotlight';
@@ -188,7 +188,7 @@ export function WorkflowsPage() {
                 <span className="dashboard-activity-icon workflow-card-icon" aria-hidden="true"><WorkflowIcon size={18} /></span>
                 <WorkflowActions workflow={workflow} onAction={mode => setSelection({ mode, workflow })} />
                 <div className="workflow-card-copy">
-                  <h2><button type="button" onClick={() => setSelection({ mode: 'view', workflow })}>{workflow.name}</button></h2>
+                  <h2><Link to={`/dashboard/workflows/${workflow.id}`}>{workflow.name}</Link></h2>
                   <p>{workflow.description || 'No description'}</p>
                 </div>
                 <div className="workflow-card-footer">

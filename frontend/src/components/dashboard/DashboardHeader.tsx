@@ -7,10 +7,11 @@ import { DashboardAvatar } from './DashboardAvatar';
 
 type HeaderProps = {
   user: User;
+  hasUnsavedChanges: boolean;
   onOpenNavigation: () => void;
 };
 
-export function DashboardHeader({ user, onOpenNavigation }: HeaderProps) {
+export function DashboardHeader({ user, hasUnsavedChanges, onOpenNavigation }: HeaderProps) {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const account = useRef<HTMLDivElement>(null);
@@ -31,7 +32,7 @@ export function DashboardHeader({ user, onOpenNavigation }: HeaderProps) {
   }, [open]);
 
   async function signOut() {
-    if (busy) return;
+    if (busy || (hasUnsavedChanges && !window.confirm('Sign out and discard your unsaved workflow changes?'))) return;
     setBusy(true);
     setError('');
     try {

@@ -2,42 +2,11 @@ import { CircleAlert, LoaderCircle, Trash2, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { authError } from '../../auth/api';
-import { createWorkflow, deleteWorkflow, getWorkflow, updateWorkflow, type Workflow, type WorkflowSummary } from '../../services/workflowApi';
-import { WorkflowStatusBadge } from './WorkflowStatusBadge';
+import { createWorkflow, deleteWorkflow, updateWorkflow, type WorkflowSummary } from '../../services/workflowApi';
 
 export type WorkflowDialogMode =
   | { mode: 'create' }
-  | { mode: 'view' | 'edit' | 'delete'; workflow: WorkflowSummary };
-
-function WorkflowDetails({ id }: { id: string }) {
-  const [workflow, setWorkflow] = useState<Workflow>();
-  const [error, setError] = useState('');
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    getWorkflow(id, controller.signal).then(setWorkflow, error => {
-      if (!controller.signal.aborted) setError(authError(error, 'Unable to load workflow details.').message);
-    });
-    return () => controller.abort();
-  }, [id, attempt]);
-
-  if (error) return <div className="workflow-dialog-error">
-    <p role="alert">{error}</p>
-    <button type="button" className="workflow-button" onClick={() => { setError(''); setAttempt(attempt + 1); }}>Retry</button>
-  </div>;
-  if (!workflow) return <p className="workflow-muted" role="status">Loading workflow details...</p>;
-
-  return <>
-    <p className="workflow-description">{workflow.description || 'No description'}</p>
-    <dl className="workflow-facts">
-      <div><dt>Status</dt><dd><WorkflowStatusBadge status={workflow.status} /></dd></div>
-      <div><dt>Last updated</dt><dd><time dateTime={workflow.updatedAt}>{new Date(workflow.updatedAt).toLocaleString()}</time></dd></div>
-      <div><dt>Nodes</dt><dd>{workflow.nodes.length}</dd></div>
-      <div><dt>Connections</dt><dd>{workflow.edges.length}</dd></div>
-    </dl>
-  </>;
-}
+  | { mode: 'edit' | 'delete'; workflow: WorkflowSummary };
 
 export function WorkflowDialog({ selection, onClose, onSaved }: {
   selection: WorkflowDialogMode;
@@ -59,7 +28,7 @@ export function WorkflowDialog({ selection, onClose, onSaved }: {
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
   const saving = useRef(false);
-  const title = { create: 'Create workflow', edit: 'Edit workflow', delete: 'Delete workflow?', view: workflow?.name }[mode];
+  const title = { create: 'Create workflow', edit: 'Edit workflow', delete: 'Delete workflow?' }[mode];
   const pending = busy || closing;
 
   useEffect(() => {
@@ -75,7 +44,7 @@ export function WorkflowDialog({ selection, onClose, onSaved }: {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving.current || closing || mode === 'view') return;
+    if (saving.current || closing) return;
 
     const trimmedName = name.trim();
     const trimmedDescription = description.trim();
@@ -151,38 +120,36 @@ export function WorkflowDialog({ selection, onClose, onSaved }: {
             <X size={20} aria-hidden="true" />
           </button>
         </header>
-        {selection.mode === 'view' ? <WorkflowDetails id={selection.workflow.id} /> : (
-          <form noValidate onSubmit={submit} aria-busy={busy}>
-            {mode === 'delete' ? (
-              <p className="workflow-description">Delete <strong>{workflow?.name}</strong>? This permanently removes the workflow and its saved graph.</p>
-            ) : (
-              <div className="workflow-form-fields">
-                <div className="workflow-field">
-                  <label htmlFor={nameId}>Workflow name</label>
-                  <input id={nameId} name="workflowName" value={name} required maxLength={120} autoFocus
-                    placeholder="e.g. Lead enrichment" disabled={pending}
-                    aria-invalid={Boolean(nameError)} aria-describedby={nameError ? nameId + '-error' : undefined}
-                    onChange={event => { setName(event.target.value); setNameError(''); setError(''); }} />
-                  {nameError && <p id={nameId + '-error'} className="workflow-danger-text">{nameError}</p>}
-                </div>
-                <div className="workflow-field">
-                  <label htmlFor={descriptionId}>Description <span>Optional</span></label>
-                  <textarea id={descriptionId} value={description} maxLength={2000} rows={3}
-                    disabled={pending} placeholder="What will this workflow do?"
-                    onChange={event => { setDescription(event.target.value); setError(''); }} />
-                </div>
+        <form noValidate onSubmit={submit} aria-busy={busy}>
+          {mode === 'delete' ? (
+            <p className="workflow-description">Delete <strong>{workflow?.name}</strong>? This permanently removes the workflow and its saved graph.</p>
+          ) : (
+            <div className="workflow-form-fields">
+              <div className="workflow-field">
+                <label htmlFor={nameId}>Workflow name</label>
+                <input id={nameId} name="workflowName" value={name} required maxLength={120} autoFocus
+                  placeholder="e.g. Lead enrichment" disabled={pending}
+                  aria-invalid={Boolean(nameError)} aria-describedby={nameError ? nameId + '-error' : undefined}
+                  onChange={event => { setName(event.target.value); setNameError(''); setError(''); }} />
+                {nameError && <p id={nameId + '-error'} className="workflow-danger-text">{nameError}</p>}
               </div>
-            )}
-            {error && <p className="workflow-inline-error" role="alert"><CircleAlert size={17} aria-hidden="true" />{error}</p>}
-            <footer className="workflow-dialog-footer">
-              <button type="button" className="workflow-button" autoFocus={mode === 'delete'} disabled={pending} onClick={() => close()}>Cancel</button>
-              <button type="submit" className={'workflow-button ' + (mode === 'delete' ? 'workflow-button-danger' : 'workflow-button-primary')} disabled={pending}>
-                {busy ? <LoaderCircle className="spinner" size={17} aria-hidden="true" /> : mode === 'delete' && <Trash2 size={16} aria-hidden="true" />}
-                {busy ? (mode === 'delete' ? 'Deleting...' : 'Saving...') : (mode === 'delete' ? 'Delete workflow' : mode === 'edit' ? 'Save changes' : 'Create workflow')}
-              </button>
-            </footer>
-          </form>
-        )}
+              <div className="workflow-field">
+                <label htmlFor={descriptionId}>Description <span>Optional</span></label>
+                <textarea id={descriptionId} value={description} maxLength={2000} rows={3}
+                  disabled={pending} placeholder="What will this workflow do?"
+                  onChange={event => { setDescription(event.target.value); setError(''); }} />
+              </div>
+            </div>
+          )}
+          {error && <p className="workflow-inline-error" role="alert"><CircleAlert size={17} aria-hidden="true" />{error}</p>}
+          <footer className="workflow-dialog-footer">
+            <button type="button" className="workflow-button" autoFocus={mode === 'delete'} disabled={pending} onClick={() => close()}>Cancel</button>
+            <button type="submit" className={'workflow-button ' + (mode === 'delete' ? 'workflow-button-danger' : 'workflow-button-primary')} disabled={pending}>
+              {busy ? <LoaderCircle className="spinner" size={17} aria-hidden="true" /> : mode === 'delete' && <Trash2 size={16} aria-hidden="true" />}
+              {busy ? (mode === 'delete' ? 'Deleting...' : 'Saving...') : (mode === 'delete' ? 'Delete workflow' : mode === 'edit' ? 'Save changes' : 'Create workflow')}
+            </button>
+          </footer>
+        </form>
       </div>
     </motion.dialog>
   );

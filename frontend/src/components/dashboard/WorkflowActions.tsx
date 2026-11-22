@@ -1,7 +1,8 @@
-import { Ellipsis, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Ellipsis, Pencil, SquarePen, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { WorkflowSummary } from '../../services/workflowApi';
 
-export type WorkflowAction = 'view' | 'edit' | 'delete';
+export type WorkflowAction = 'edit' | 'delete';
 
 export function WorkflowActions({ workflow, onAction }: {
   workflow: WorkflowSummary;
@@ -26,7 +27,7 @@ export function WorkflowActions({ workflow, onAction }: {
         <Ellipsis size={20} aria-hidden="true" />
       </summary>
       <div className="workflow-actions-panel" onClick={event => {
-        const button = event.target instanceof Element ? event.target.closest('button') : null;
+        const button = event.target instanceof Element ? event.target.closest('a, button') : null;
         if (button) {
           const details = event.currentTarget.closest('details');
           if (details) {
@@ -35,7 +36,7 @@ export function WorkflowActions({ workflow, onAction }: {
           }
         }
       }}>
-        <button type="button" onClick={() => onAction('view')}><Eye size={16} aria-hidden="true" /> View details</button>
+        <Link to={`/dashboard/workflows/${workflow.id}`}><SquarePen size={16} aria-hidden="true" /> Open editor</Link>
         <button type="button" onClick={() => onAction('edit')}><Pencil size={16} aria-hidden="true" /> Edit details</button>
         <button type="button" className="workflow-danger-text" onClick={() => onAction('delete')}><Trash2 size={16} aria-hidden="true" /> Delete workflow</button>
       </div>
