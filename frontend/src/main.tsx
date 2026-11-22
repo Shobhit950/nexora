@@ -12,6 +12,7 @@ import './styles.css';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
 const DashboardLayout = lazy(() => import('./layouts/DashboardLayout').then(module => ({ default: module.DashboardLayout })));
+const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage').then(module => ({ default: module.WorkflowsPage })));
 const LandingPage = lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
 
 createRoot(document.getElementById('root')!).render(
@@ -30,6 +31,7 @@ createRoot(document.getElementById('root')!).render(
               </Suspense>
             }>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard/workflows" element={<WorkflowsPage />} />
             </Route>
           </Route>
           <Route path="/" element={<Suspense><LandingPage /></Suspense>} />

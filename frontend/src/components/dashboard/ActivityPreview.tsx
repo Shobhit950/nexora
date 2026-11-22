@@ -1,13 +1,7 @@
-import { Check, History, Workflow, X, type LucideIcon } from 'lucide-react';
-
-export type WorkflowPreviewItem = {
-  id: string;
-  name: string;
-  description: string;
-  status: 'Active' | 'Draft';
-  updatedAt: string;
-  icon: LucideIcon;
-};
+import { Check, CircleAlert, History, Workflow, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import type { WorkflowSummary } from '../../services/workflowApi';
+import { WorkflowStatusBadge } from './WorkflowStatusBadge';
 
 export type ExecutionPreviewItem = {
   id: string;
@@ -23,25 +17,38 @@ const activityDate = new Intl.DateTimeFormat(undefined, {
   minute: '2-digit',
 });
 
-export function WorkflowPreview({ workflows, demo = false }: { workflows: readonly WorkflowPreviewItem[]; demo?: boolean }) {
+export function WorkflowPreview({ workflows, loading, error, onRetry }: {
+  workflows: readonly WorkflowSummary[];
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+}) {
   return (
     <section className="dashboard-surface dashboard-activity" aria-labelledby="recent-workflows-title">
       <div className="dashboard-section-heading">
         <h2 id="recent-workflows-title">Recent workflows</h2>
-        {demo && <span className="dashboard-demo-tag">Demo data</span>}
+        <Link className="dashboard-workflows-link" to="/dashboard/workflows">View all</Link>
       </div>
 
-      {workflows.length ? (
+      {loading ? (
+        <p className="dashboard-empty" role="status">Loading workflows...</p>
+      ) : error ? (
+        <div className="dashboard-empty">
+          <CircleAlert size={24} aria-hidden="true" />
+          <p role="alert">Unable to load workflows.</p>
+          <button type="button" className="dashboard-workflows-link" onClick={onRetry}>Retry</button>
+        </div>
+      ) : workflows.length ? (
         <ul className="dashboard-activity-list">
-          {workflows.map(({ id, name, description, status, updatedAt, icon: Icon }) => (
+          {workflows.map(({ id, name, description, status, updatedAt }) => (
             <li className="dashboard-workflow-row" key={id}>
-              <span className="dashboard-activity-icon" aria-hidden="true"><Icon size={19} /></span>
+              <span className="dashboard-activity-icon" aria-hidden="true"><Workflow size={19} /></span>
               <div className="dashboard-activity-details">
                 <h3>{name}</h3>
-                <p>{description}</p>
+                <p>{description || 'No description'}</p>
               </div>
               <div className="dashboard-workflow-meta">
-                <span className="dashboard-status" data-status={status}><i aria-hidden="true" />{status}</span>
+                <WorkflowStatusBadge status={status} />
                 <time dateTime={updatedAt}>Updated {activityDate.format(new Date(updatedAt))}</time>
               </div>
             </li>
@@ -51,7 +58,8 @@ export function WorkflowPreview({ workflows, demo = false }: { workflows: readon
         <div className="dashboard-empty">
           <Workflow size={28} aria-hidden="true" />
           <h3>No workflows yet</h3>
-          <p>New workflows will appear here. Start by choosing a trigger and an action in the builder.</p>
+          <p>New workflows will appear here.</p>
+          <Link className="dashboard-workflows-link" to="/dashboard/workflows?create=1">Create a workflow</Link>
         </div>
       )}
     </section>

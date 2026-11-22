@@ -4,7 +4,6 @@ import type { User } from '../../auth/api';
 import { DashboardAvatar } from './DashboardAvatar';
 
 const upcomingNavigation = [
-  { label: 'My Workflows', icon: Workflow },
   { label: 'Executions', icon: History },
   { label: 'Integrations', icon: Cable },
   { label: 'Settings', icon: Settings },
@@ -58,6 +57,11 @@ export function DashboardSidebar({ user, collapsed = false, onToggle, onClose }:
           <LayoutDashboard size={19} aria-hidden="true" />
           <span className="dashboard-nav-label" aria-hidden="true">Dashboard</span>
           {collapsed && <span className="dashboard-sidebar-tip" aria-hidden="true">Dashboard</span>}
+        </NavLink>
+        <NavLink to="/dashboard/workflows" onClick={onClose} className="dashboard-nav-item" aria-label="My Workflows">
+          <Workflow size={19} aria-hidden="true" />
+          <span className="dashboard-nav-label" aria-hidden="true">My Workflows</span>
+          {collapsed && <span className="dashboard-sidebar-tip" aria-hidden="true">My Workflows</span>}
         </NavLink>
         {upcomingNavigation.map(({ label, icon: Icon }) => (
           <div key={label} className="dashboard-nav-item dashboard-nav-upcoming"

@@ -5,7 +5,7 @@ import { moveSpotlight } from './spotlight';
 
 type MetricCardProps = {
   label: string;
-  value: number;
+  value: number | null;
   icon: LucideIcon;
   tone: 'violet' | 'cyan' | 'green' | 'rose';
   order: number;
@@ -15,10 +15,11 @@ const numberFormat = new Intl.NumberFormat();
 
 export function MetricCard({ label, value, icon: Icon, tone, order }: MetricCardProps) {
   const reducedMotion = useReducedMotion();
-  const counter = useMotionValue(reducedMotion ? value : 0);
+  const counter = useMotionValue(reducedMotion ? value ?? 0 : 0);
   const display = useTransform(counter, number => numberFormat.format(Math.round(number)));
 
   useEffect(() => {
+    if (value === null) return;
     if (reducedMotion) {
       counter.jump(value);
       return;
@@ -39,8 +40,10 @@ export function MetricCard({ label, value, icon: Icon, tone, order }: MetricCard
     >
       <dt>{label}</dt>
       <dd>
-        <span className="sr-only">{numberFormat.format(value)}</span>
-        <motion.span aria-hidden="true">{display}</motion.span>
+        {value === null ? <><span className="sr-only">Unavailable</span><span aria-hidden="true">?</span></> : <>
+          <span className="sr-only">{numberFormat.format(value)}</span>
+          <motion.span aria-hidden="true">{display}</motion.span>
+        </>}
       </dd>
       <span className="dashboard-metric-icon" aria-hidden="true"><Icon size={20} /></span>
     </motion.div>

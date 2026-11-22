@@ -1,0 +1,106 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 3053 >>
+stream
+0.96 0.94 1 rg 0 662 595 180 re f
+0.38 0.22 0.67 rg 0 838 595 4 re f
+BT /F2 11 Tf 0.38 0.22 0.67 rg 52 797 Td (NEXORA / DEVELOPER GUIDE) Tj ET
+BT /F2 30 Tf 0.13 0.10 0.22 rg 52 746 Td (Nexora Authentication) Tj ET
+BT /F1 12 Tf 0.28 0.25 0.37 rg 52 708 Td (How the frontend, API, and database work together) Tj ET
+0.86 0.82 0.93 RG 52 58 m 543 58 l S
+BT /F1 9 Tf 0.28 0.25 0.37 rg 52 39 Td (Nexora Authentication / Quick Guide) Tj ET
+BT /F2 9 Tf 0.28 0.25 0.37 rg 516 39 Td (1 / 2) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 625 Td (1. The tools and the UI) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 602 Td (React builds the screens and TypeScript checks the code. Vite runs the dev server) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 585 Td (and builds the app. Tailwind and styles.css create the dark UI, responsive layout,) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 568 Td (and animated workflow. React Router switches pages.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 531 Td (2. How the browser reaches the API) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 508 Td (Axios sends requests to Express, which uses Drizzle to talk to PostgreSQL. In) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 491 Td (development, Vite forwards /api/auth requests to port 8000 on the computer running) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 474 Td (the app. This fixes Wi-Fi previews, where localhost in a phone browser would point) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 457 Td (to the phone. VITE_API_BASE_URL can override the destination. Axios is configured) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 440 Td (to send cookies with credentials.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 403 Td (3. Signup creates an account) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 380 Td (The form checks that the passwords match and sends only name, email, and password.) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 363 Td (Express validates them with Zod and normalizes the email. The API checks for a) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 346 Td (duplicate, hashes the password with bcrypt, and saves the user. Success sends you) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 329 Td (to login with an account-created message.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 292 Td (4. Login starts a session) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 269 Td (Express checks your password against the stored hash. On success, it returns a) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 252 Td (short-lived access token and sets a refresh cookie. PostgreSQL stores only a hash) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 235 Td (of the refresh token. AuthProvider exposes the signed-in user to the app, and the) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 218 Td (route guard takes you to the dashboard.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 181 Td (Where to start reading the code) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 158 Td (Start with frontend/src/main.tsx for routes and AuthPage.tsx for forms. Follow) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 141 Td (frontend/src/auth/api.ts to the Express auth router and controller.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 2894 >>
+stream
+0.96 0.94 1 rg 0 662 595 180 re f
+0.38 0.22 0.67 rg 0 838 595 4 re f
+BT /F2 11 Tf 0.38 0.22 0.67 rg 52 797 Td (NEXORA / DEVELOPER GUIDE) Tj ET
+BT /F2 30 Tf 0.13 0.10 0.22 rg 52 746 Td (Staying signed in) Tj ET
+BT /F1 12 Tf 0.28 0.25 0.37 rg 52 708 Td (What happens when you reload, access a page, or sign out) Tj ET
+0.86 0.82 0.93 RG 52 58 m 543 58 l S
+BT /F1 9 Tf 0.28 0.25 0.37 rg 52 39 Td (Nexora Authentication / Quick Guide) Tj ET
+BT /F2 9 Tf 0.28 0.25 0.37 rg 516 39 Td (2 / 2) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 625 Td (5. Two tokens with different jobs) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 602 Td (The access token is a signed JWT. It proves who you are to protected endpoints for) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 585 Td (15 minutes and lives in frontend memory. The refresh token lives in an HttpOnly) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 568 Td (browser cookie, so page scripts cannot read it. The refresh session lasts seven) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 551 Td (days by default.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 514 Td (6. Refresh restores or renews your session) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 491 Td (On reload, the app uses the cookie to get a new access token, then calls) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 474 Td (/api/auth/me for your current profile. Each successful refresh replaces the old) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 457 Td (refresh token. If several protected requests get a 401 together, they share one) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 440 Td (refresh and each eligible request retries once.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 403 Td (7. Protected pages and logout) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 380 Td (The route guard sends signed-out visitors from /dashboard to /login. Signed-in) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 363 Td (visitors are sent from login or signup to /dashboard. Sign out deletes the matching) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 346 Td (session and clears the cookie and frontend state. A previously issued access token) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 329 Td (can still work until it expires.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 292 Td (Try it in your browser) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 269 Td (With both servers running, open http://localhost:5173/signup. Create an account,) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 252 Td (log in, and reload the dashboard. In DevTools Network, look for one refresh request) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 235 Td (followed by /me. Sign out and visit /dashboard - you should land back on login.) Tj ET
+BT /F2 15 Tf 0.38 0.22 0.67 rg 52 198 Td (For the full implementation) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 175 Td (See docs/FRONTEND_AUTHENTICATION_GUIDE.md for code snippets, source paths, and) Tj ET
+BT /F1 12 Tf 0.13 0.10 0.22 rg 52 158 Td (detailed flow diagrams.) Tj ET
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000266 00000 n 
+0000000402 00000 n 
+0000003506 00000 n 
+0000003642 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+6587
+%%EOF

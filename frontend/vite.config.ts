@@ -9,6 +9,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      '/api/workflows': { target: 'http://localhost:8000' },
       '/api/auth': {
         target: 'http://localhost:8000',
         configure(proxy) {

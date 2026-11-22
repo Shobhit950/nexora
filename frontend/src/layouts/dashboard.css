@@ -302,3 +302,6 @@ html:has(.dashboard-shell) { scrollbar-color: #594372 #100d1b; }
   .dashboard-metric:hover, :is(.dashboard-workflow-row, .dashboard-execution-row):hover .dashboard-activity-icon { translate: none; }
   .dashboard-nav-item[aria-current="page"]:hover::before { scale: none; }
 }
+
+.dashboard-workflows-link { color: var(--dashboard-violet); font-size: .82rem; font-weight: 750; text-underline-offset: 4px; }
+.dashboard-workflows-link:hover { text-decoration: underline; }
