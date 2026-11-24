@@ -1,12 +1,12 @@
 import {
   Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow,
-  useReactFlow, type IsValidConnection, type OnConnect, type OnEdgesChange, type OnNodesChange, type XYPosition,
+  useReactFlow, type IsValidConnection, type OnConnect, type OnConnectEnd, type OnEdgesChange, type OnNodesChange, type XYPosition,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Plus, Workflow as WorkflowIcon } from 'lucide-react';
-import { useId, type DragEvent, type RefObject } from 'react';
+import { useId, useState, type DragEvent, type RefObject } from 'react';
 import {
-  GRID_SPACING, isNodeKind, MAX_COORDINATE, MAX_NODES, NODE_DRAG_TYPE, nodeCatalog, type EditorEdge, type EditorGraph, type EditorNode, type NodeKind,
+  connectionError, GRID_SPACING, isNodeKind, MAX_COORDINATE, MAX_NODES, NODE_DRAG_TYPE, nodeCatalog, type EditorEdge, type EditorGraph, type EditorNode, type NodeKind,
 } from './graph';
 import { WorkflowNodeCard } from './WorkflowNodes';
 
@@ -28,7 +28,23 @@ type CanvasProps = {
 
 export function WorkflowCanvas({ canvasRef, graph, snap, onAddTrigger, onAdd, onNodesChange, onEdgesChange, onConnect, isValidConnection }: CanvasProps) {
   const instructions = useId();
+  const [connectionFeedback, setConnectionFeedback] = useState('');
   const { screenToFlowPosition } = useReactFlow<EditorNode, EditorEdge>();
+
+  const finishConnection: OnConnectEnd = (_, state) => {
+    if (!state.fromNode || state.isValid) return;
+    if (state.toNode && state.fromHandle?.type !== state.toHandle?.type) {
+      const fromSource = state.fromHandle?.type === 'source';
+      const source = fromSource ? state.fromNode.id : state.toNode.id;
+      const target = fromSource ? state.toNode.id : state.fromNode.id;
+      const error = connectionError({ source, target }, graph);
+      if (error) {
+        setConnectionFeedback(error);
+        return;
+      }
+    }
+    setConnectionFeedback('Connect an output handle to an input handle on another node.');
+  };
 
   function drop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -49,6 +65,9 @@ export function WorkflowCanvas({ canvasRef, graph, snap, onAddTrigger, onAdd, on
       <ReactFlow<EditorNode, EditorEdge>
         nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes}
         {...{ onNodesChange, onEdgesChange, onConnect, isValidConnection }}
+        onConnectStart={() => setConnectionFeedback('')} onConnectEnd={finishConnection}
+        onClickConnectStart={() => setConnectionFeedback('')} onClickConnectEnd={finishConnection}
+        onPaneClick={() => setConnectionFeedback('')}
         nodeExtent={extent} defaultEdgeOptions={edgeOptions}
         forceColorMode="dark" minZoom={.25} maxZoom={2} fitView fitViewOptions={{ padding: .24, maxZoom: 1 }}
         edgesReconnectable={false} zoomOnScroll={false} snapToGrid={snap} snapGrid={[GRID_SPACING, GRID_SPACING]}
@@ -59,6 +78,7 @@ export function WorkflowCanvas({ canvasRef, graph, snap, onAddTrigger, onAdd, on
         <Controls showInteractive={false} aria-label="Canvas controls" />
         <MiniMap<EditorNode> pannable zoomable ariaLabel="Workflow overview map" nodeColor={node => nodeCatalog[node.type].color} />
       </ReactFlow>
+      <div className="editor-connection-feedback" role="status">{connectionFeedback}</div>
       {graph.nodes.length === 0 && (
         <div className="editor-canvas-empty">
           <span className="editor-canvas-empty-icon" aria-hidden="true"><WorkflowIcon size={27} /></span>

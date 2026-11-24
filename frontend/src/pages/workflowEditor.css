@@ -14,6 +14,23 @@
 .editor-toolbar-actions { justify-content: flex-end; gap: 8px 13px; }
 .editor-tools .editor-icon-button { width: 38px; min-height: 38px; padding: 6px; }
 .editor-tools .editor-snap { min-height: 38px; }
+.editor-tool { position: relative; display: inline-flex; }
+.editor-tool [role="tooltip"] {
+  position: absolute;
+  z-index: 5;
+  inset: auto auto calc(100% + 6px) 0;
+  width: max-content;
+  max-width: 170px;
+  padding: 5px 8px;
+  border: 1px solid #9673bf85;
+  border-radius: 6px;
+  background: #261c35;
+  color: #f4eaff;
+  font-size: .72rem;
+  opacity: 0;
+  pointer-events: none;
+}
+.editor-tool:is(:hover, :focus-within) [role="tooltip"] { opacity: 1; }
 .editor-tools .editor-button:is([aria-pressed="true"], [aria-expanded="true"]) { color: #edd7fe; background: #36254b; border-color: #b18bd385; }
 .editor-save { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 10px; flex-shrink: 0; }
 .editor-save-state { display: inline-flex; align-items: center; gap: 4px; color: #a1e2ca; font-size: .79rem; }
@@ -112,6 +129,20 @@
 .editor-canvas .react-flow__controls-button { min-width: 30px; min-height: 30px; }
 .editor-canvas .react-flow__minimap-svg { width: min(130px, 28vw); height: auto; }
 .editor-canvas .editor-edge-new .react-flow__edge-path { animation: editor-edge-appear .36s ease-out; }
+.editor-canvas .react-flow__edge-path { transition: stroke .16s; }
+.editor-connection-feedback:not(:empty) {
+  position: absolute;
+  z-index: 5;
+  inset: 10px 10px auto;
+  width: fit-content;
+  padding: 7px 10px;
+  border: 1px solid #e49aaa56;
+  border-radius: 7px;
+  background: #342034;
+  color: #ffc1ce;
+  font-size: .8rem;
+  pointer-events: none;
+}
 @keyframes editor-edge-appear {
   0% { opacity: .35; stroke-width: 4; }
   100% { opacity: 1; stroke-width: var(--xy-edge-stroke-width); }
@@ -150,6 +181,7 @@
   border-radius: 9px;
   background: linear-gradient(150deg, color-mix(in srgb, var(--editor-node-tone) 12%, #23192f), #1d1729 85%);
   box-shadow: 0 7px 14px #08051077;
+  transition: border-color .16s, box-shadow .16s;
 }
 .editor-node-card[data-selected="true"] { border-color: var(--editor-node-tone); box-shadow: 0 0 0 2px #be94fa45, 0 8px 17px #08051088; }
 .editor-node-icon {
@@ -169,6 +201,7 @@
   height: 12px;
   background: #332044;
   border: 2px solid var(--editor-node-tone);
+  transition: background-color .16s;
 }
 .editor-node-card .react-flow__handle:is(.valid, :hover) { background: var(--editor-node-tone); }
 .editor-node-card .editor-legacy-handle { opacity: 0; pointer-events: none; }
@@ -227,6 +260,7 @@
   .editor-add-icon { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .editor-button, .editor-palette-option { transition: none; }
+  .editor-button, .editor-palette-option, .editor-node-card,
+  .editor-node-card .react-flow__handle, .editor-canvas .react-flow__edge-path { transition: none; }
   .editor-canvas .editor-edge-new .react-flow__edge-path { animation: none; }
 }

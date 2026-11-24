@@ -95,6 +95,9 @@ export function NodeInspector({ graph, hidden, onUpdate, onConnect, onRemove, on
             <span>Operation</span>
             <Dropdown label="Transform operation" value={node.data.operation} options={operationOptions}
               onChange={operation => onUpdate({ ...node, data: { operation } })} />
+            {!operations.includes(node.data.operation) && (
+              <p className="editor-field-error" role="alert">Choose Trim whitespace, Uppercase, or Lowercase.</p>
+            )}
           </div>
         )}
         {node.type === 'delay' && (

@@ -4,7 +4,7 @@ import {
 } from '@xyflow/react';
 import { isAxiosError } from 'axios';
 import { ArrowLeft, Check, CircleAlert, Grid2X2, LoaderCircle, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Redo2, Save, Undo2 } from 'lucide-react';
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useOutletContext, useParams } from 'react-router-dom';
 import { authError, readSession } from '../auth/api';
 import { WorkflowStatusBadge } from '../components/dashboard/WorkflowStatusBadge';
@@ -48,7 +48,9 @@ function LeaveEditorDialog({ onStay, onLeave }: { onStay: () => void; onLeave: (
 }
 
 function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initialGraph: EditorGraph }) {
+  const editorRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const tooltips = useId();
   const saving = useRef(false);
   const discarded = useRef(false);
   const [recovered] = useState(() => {
@@ -58,7 +60,10 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
   const { graph, signature, changeGraph, finishEdit, undo, redo, canUndo, canRedo } = useGraphHistory(recovered ?? initialGraph);
   const latestGraph = useRef(graph);
   const [showRecoveryNotice, setShowRecoveryNotice] = useState(Boolean(recovered));
-  const [savedSignature, setSavedSignature] = useState(() => graphSignature(graphDraft(initialGraph)));
+  const [savedBaseline, setSavedBaseline] = useState(() => ({
+    signature: graphSignature(graphDraft(initialGraph)),
+    edges: workflow.edges,
+  }));
   const [snap, setSnap] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(true);
@@ -67,7 +72,7 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
   const { screenToFlowPosition } = useReactFlow<EditorNode, EditorEdge>();
   const { setHasUnsavedChanges } = useOutletContext<DashboardOutletContext>();
 
-  const dirty = signature !== savedSignature;
+  const dirty = signature !== savedBaseline.signature;
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
 
   useLayoutEffect(() => { latestGraph.current = graph; }, [graph]);
@@ -151,32 +156,39 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
     });
   }
 
-  function handleShortcuts(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.defaultPrevented || event.nativeEvent.isComposing || !(event.target instanceof Element) ||
+  const handleShortcuts = useEffectEvent((event: KeyboardEvent) => {
+    if (blocker.state === 'blocked' || event.defaultPrevented || event.isComposing || !(event.target instanceof Element) ||
+        (event.target !== document.body && !editorRef.current?.contains(event.target)) ||
         event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="listbox"], dialog')) return;
 
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && !event.altKey) {
       const redoShortcut = (key === 'z' && event.shiftKey) || (key === 'y' && event.ctrlKey && !event.shiftKey);
-      if (redoShortcut && canRedo) {
+      if (redoShortcut) {
         event.preventDefault();
-        redo();
-      } else if (key === 'z' && !event.shiftKey && canUndo) {
+        if (canRedo) redo();
+      } else if (key === 'z' && !event.shiftKey) {
         event.preventDefault();
-        undo();
+        if (canUndo) undo();
       }
       return;
     }
-    if ((key === 'delete' || key === 'backspace') && !event.altKey && canvasRef.current?.contains(event.target) &&
+    if ((key === 'delete' || key === 'backspace') && !event.altKey && !event.ctrlKey && !event.metaKey &&
         (graph.nodes.some(node => node.selected) || graph.edges.some(edge => edge.selected))) {
       event.preventDefault();
       if (!event.repeat) removeSelection();
     }
-  }
+  });
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => handleShortcuts(event);
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, []);
 
   async function save() {
     if (!dirty || saving.current) return;
-    const prepared = prepareGraph(graphDraft(graph));
+    const prepared = prepareGraph(graphDraft(graph), savedBaseline.edges);
     if ('error' in prepared) {
       setError(prepared.error);
       return;
@@ -187,7 +199,10 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
     setError('');
     try {
       const saved = await updateWorkflow(workflow.id, prepared.graph);
-      setSavedSignature(graphSignature(graphDraft(hydrateGraph(saved))));
+      setSavedBaseline({
+        signature: graphSignature(graphDraft(hydrateGraph(saved))),
+        edges: saved.edges,
+      });
       setShowRecoveryNotice(false);
     } catch (error) {
       if (!discarded.current && isAxiosError(error) && error.response?.status === 401 && !readSession().user) {
@@ -202,7 +217,7 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
   }
 
   return (
-    <div className="workflow-editor" onKeyDown={handleShortcuts}>
+    <div className="workflow-editor" ref={editorRef}>
       <header className="editor-toolbar dashboard-surface">
         <div className="editor-title-group">
           <Link to={workflowsPath} className="editor-back"><ArrowLeft size={16} aria-hidden="true" /> My Workflows</Link>
@@ -211,21 +226,23 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
         </div>
         <div className="editor-toolbar-actions">
           <div className="editor-tools" role="group" aria-label="Editor tools">
-            <button type="button" className="editor-button editor-icon-button" aria-label="Undo" title="Undo (Ctrl or Cmd+Z)"
+            <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label="Undo" aria-describedby={tooltips + '-undo'}
               aria-keyshortcuts="Control+Z Meta+Z" disabled={!canUndo} onClick={undo}><Undo2 size={17} aria-hidden="true" /></button>
-            <button type="button" className="editor-button editor-icon-button" aria-label="Redo" title="Redo (Ctrl or Cmd+Shift+Z)"
+              <span role="tooltip" id={tooltips + '-undo'}>Undo · Ctrl+Z / Cmd+Z</span></span>
+            <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label="Redo" aria-describedby={tooltips + '-redo'}
               aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y" disabled={!canRedo} onClick={redo}><Redo2 size={17} aria-hidden="true" /></button>
-            <button type="button" className="editor-button editor-snap" aria-label="Snap to grid" aria-pressed={snap} onClick={() => setSnap(!snap)}>
+              <span role="tooltip" id={tooltips + '-redo'}>Redo · Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z</span></span>
+            <span className="editor-tool"><button type="button" className="editor-button editor-snap" aria-label="Snap to grid" aria-describedby={tooltips + '-snap'} aria-pressed={snap} onClick={() => setSnap(!snap)}>
               <Grid2X2 size={15} aria-hidden="true" /> Snap
-            </button>
-            <button type="button" className="editor-button editor-icon-button" aria-label={paletteOpen ? 'Hide node palette' : 'Show node palette'}
-              title="Toggle node palette" aria-expanded={paletteOpen} aria-controls="editor-node-palette" onClick={() => setPaletteOpen(!paletteOpen)}>
+            </button><span role="tooltip" id={tooltips + '-snap'}>Align moved and new nodes to the grid</span></span>
+            <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label={paletteOpen ? 'Hide node palette' : 'Show node palette'}
+              aria-expanded={paletteOpen} aria-controls="editor-node-palette" onClick={() => setPaletteOpen(!paletteOpen)}>
               {paletteOpen ? <PanelLeftClose size={17} aria-hidden="true" /> : <PanelLeftOpen size={17} aria-hidden="true" />}
-            </button>
-            <button type="button" className="editor-button editor-icon-button" aria-label={settingsOpen ? 'Hide settings' : 'Show settings'}
-              title="Toggle settings" aria-expanded={settingsOpen} aria-controls="editor-node-settings" onClick={() => setSettingsOpen(!settingsOpen)}>
+            </button><span role="tooltip" aria-hidden="true">{paletteOpen ? 'Hide node palette' : 'Show node palette'}</span></span>
+            <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label={settingsOpen ? 'Hide settings' : 'Show settings'}
+              aria-expanded={settingsOpen} aria-controls="editor-node-settings" onClick={() => setSettingsOpen(!settingsOpen)}>
               {settingsOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
-            </button>
+            </button><span role="tooltip" aria-hidden="true">{settingsOpen ? 'Hide settings' : 'Show settings'}</span></span>
           </div>
           <div className="editor-save">
             <span className="editor-save-state" data-dirty={dirty} role="status">

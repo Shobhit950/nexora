@@ -48,12 +48,21 @@ export function createEdge({ source, target }: ConnectionEndpoints): EditorEdge 
   return { id: newGraphId(), source, target, type: 'smoothstep', className: 'editor-edge-new' };
 }
 
-export function isValidConnection({ source, target }: ConnectionEndpoints, { nodes, edges }: EditorGraph) {
-  return edges.length < MAX_EDGES &&
-    source !== target &&
-    nodes.some(node => node.id === source) &&
-    nodes.some(node => node.id === target && node.type !== 'manualTrigger') &&
-    !edges.some(edge => edge.source === source && edge.target === target);
+export function connectionError({ source, target }: ConnectionEndpoints, { nodes, edges }: EditorGraph) {
+  if (edges.length >= MAX_EDGES) return 'Remove a connection before adding another. The limit is 200.';
+  return endpointError(source, target, new Map(nodes.map(node => [node.id, node.type]))) ??
+    (edges.some(edge => edge.source === source && edge.target === target)
+      ? 'These nodes already have a connection in this direction.' : undefined);
+}
+
+function endpointError(source: string, target: string, kinds: ReadonlyMap<string, NodeKind>) {
+  if (!kinds.has(source) || !kinds.has(target)) return 'Each connection must link two existing nodes.';
+  if (source === target) return 'A node cannot connect to itself.';
+  if (kinds.get(target) === 'manualTrigger') return 'Manual Triggers have no input. Connect to a Transform or Delay node.';
+}
+
+export function isValidConnection(connection: ConnectionEndpoints, graph: EditorGraph) {
+  return connectionError(connection, graph) === undefined;
 }
 
 export function hydrateGraph(workflow: Workflow): EditorGraph {
@@ -111,20 +120,24 @@ export function graphSignature(draft: ReturnType<typeof graphDraft>) {
 
 const validGraphId = /^[A-Za-z0-9_.-]{1,64}$/;
 
-export function prepareGraph(draft: ReturnType<typeof graphDraft>): { graph: Pick<Workflow, 'nodes' | 'edges'> } | { error: string } {
+function edgeRoute(edge: WorkflowEdge) {
+  return JSON.stringify([edge.source, edge.target, edge.sourceHandle ?? null, edge.targetHandle ?? null]);
+}
+
+export function prepareGraph(draft: ReturnType<typeof graphDraft>, savedEdges: WorkflowEdge[] = []): { graph: Pick<Workflow, 'nodes' | 'edges'> } | { error: string } {
   if (draft.nodes.length > MAX_NODES || draft.edges.length > MAX_EDGES) {
     return { error: 'A workflow can have up to 100 nodes and 200 connections.' };
   }
 
-  const ids = new Set<string>();
+  const kinds = new Map<string, NodeKind>();
   const nodes: WorkflowNode[] = [];
   for (const node of draft.nodes) {
     const { x, y } = node.position;
-    if (!validGraphId.test(node.id) || ids.has(node.id)) return { error: 'Each node needs a valid, unique ID.' };
+    if (!validGraphId.test(node.id) || kinds.has(node.id)) return { error: 'Each node needs a valid, unique ID.' };
     if (![x, y].every(value => Number.isFinite(value) && Math.abs(value) <= MAX_COORDINATE)) {
       return { error: 'Move nodes within the allowed canvas bounds before saving.' };
     }
-    ids.add(node.id);
+    kinds.set(node.id, node.type);
     if (node.type === 'delay') {
       const durationMs = parseDuration(node.data.durationMs);
       if (durationMs === null) return { error: 'Each Delay node needs a whole number from 1 to 60,000 ms.' };
@@ -138,10 +151,23 @@ export function prepareGraph(draft: ReturnType<typeof graphDraft>): { graph: Pic
   }
 
   const edgeIds = new Set<string>();
+  const savedRoutes = new Map(savedEdges.map(edge => [edge.id, edgeRoute(edge)]));
+  const routeCounts = new Map<string, number>();
   for (const edge of draft.edges) {
     if (!validGraphId.test(edge.id) || edgeIds.has(edge.id)) return { error: 'Each connection needs a valid, unique ID.' };
-    if (!ids.has(edge.source) || !ids.has(edge.target)) return { error: 'Each connection must link two existing nodes.' };
+    if (!kinds.has(edge.source) || !kinds.has(edge.target)) return { error: 'Each connection must link two existing nodes.' };
     edgeIds.add(edge.id);
+    const route = edgeRoute(edge);
+    routeCounts.set(route, (routeCounts.get(route) ?? 0) + 1);
+  }
+  for (const edge of draft.edges) {
+    const route = edgeRoute(edge);
+    // Preserve previously saved connections the backend accepts, including legacy trigger inputs.
+    if (savedRoutes.get(edge.id) !== route) {
+      const problem = endpointError(edge.source, edge.target, kinds);
+      if (problem) return { error: problem };
+      if ((routeCounts.get(route) ?? 0) > 1) return { error: 'Remove duplicate connections between the same ports before saving.' };
+    }
   }
 
   const graph = { nodes, edges: draft.edges };
