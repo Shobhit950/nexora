@@ -6,7 +6,8 @@ import { useAuth } from '../auth/AuthProvider';
 import { ExecutionPreview, WorkflowPreview } from '../components/dashboard/ActivityPreview';
 import { AutomationPreview } from '../components/dashboard/AutomationPreview';
 import { demoExecutions } from '../components/dashboard/demoData';
-import { demoExecutionActivity, type ExecutionRange } from '../components/dashboard/executionDemo';
+import { executionRanges, summarizeExecutions, type ExecutionRange } from '../components/dashboard/executionData';
+import { demoExecutionActivity } from '../components/dashboard/executionDemo';
 import { HeroWorkflow } from '../components/dashboard/HeroWorkflow';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { QuickStart } from '../components/dashboard/QuickStart';
@@ -24,7 +25,8 @@ export function DashboardPage() {
   const firstName = user?.name.trim().split(/\s+/)[0];
   const reducedMotion = useReducedMotion();
   const [range, setRange] = useState<ExecutionRange>(7);
-  const executions = demoExecutionActivity[range];
+  const dataset = demoExecutionActivity.getDataset(range);
+  const executions = summarizeExecutions(dataset.buckets);
   const [overview, setOverview] = useState<WorkflowOverview>();
   const [workflowError, setWorkflowError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -73,7 +75,7 @@ export function DashboardPage() {
         <div className="dashboard-section-heading dashboard-metric-heading">
           <h2 id="workspace-overview-title">Workspace overview</h2>
           <span className="dashboard-demo-tag">Execution metrics demo</span>
-          <span className="dashboard-metric-range">Executions · {range} days</span>
+          <span className="dashboard-metric-range">Executions · {executionRanges.find(option => option.value === range)?.description}</span>
         </div>
         <dl className="dashboard-metrics">
           <MetricCard label="Total workflows" value={overview?.total ?? null} icon={Workflow} tone="violet" order={0} />
@@ -84,7 +86,7 @@ export function DashboardPage() {
       </section>
 
       <Suspense fallback={<p className="dashboard-surface dashboard-analytics-loading" role="status">Loading execution activity…</p>}>
-        <ExecutionAnalytics range={range} onRangeChange={setRange} />
+        <ExecutionAnalytics range={range} dataset={dataset} onRangeChange={setRange} />
       </Suspense>
 
       <div className="dashboard-activity-grid">
