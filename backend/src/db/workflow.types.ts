@@ -1,4 +1,4 @@
-type WorkflowJsonValue =
+export type WorkflowJsonValue =
   | string
   | number
   | boolean

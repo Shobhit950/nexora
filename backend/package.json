@@ -4,9 +4,10 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run build && node --test dist/engine/__tests__/execution-engine.test.js",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "engine:demo": "npm run build && node dist/engine/examples/uppercase-delay.demo.js",
     "start": "tsx dist/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
