@@ -1,4 +1,7 @@
 .workflow-editor { display: grid; gap: 13px; min-width: 0; }
+@media (min-width: 701px) {
+  .workflow-editor[data-focus-mode="true"] { --editor-height-reserve: 178px; }
+}
 .editor-toolbar { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; padding: 15px 17px; }
 .editor-title-group { min-width: 0; }
 .editor-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -62,9 +65,7 @@
 .editor-alert svg { flex-shrink: 0; }
 .editor-recovered { color: #efd1a7; border-color: #c5976e63; background: #312637; }
 
-.editor-workspace { display: flex; gap: 10px; }
-.editor-palette { flex: 0 0 clamp(174px, 17%, 225px); }
-.editor-inspector { flex: 0 0 clamp(198px, 20%, 260px); }
+.editor-workspace { display: flex; align-items: stretch; min-width: 0; gap: 10px; }
 .editor-panel[hidden] { display: none; }
 .editor-panel {
   min-width: 0;
@@ -101,7 +102,7 @@
 .editor-canvas {
   position: relative;
   flex: 1 1 0;
-  height: max(470px, calc(100svh - 240px));
+  height: max(470px, calc(100svh - var(--editor-height-reserve, 240px)));
   min-width: 0;
   border: 1px solid #514066;
   border-radius: 12px;
@@ -242,21 +243,12 @@
 .editor-leave-dialog p { margin: 8px 0 15px; color: #d2bedf; font-size: .88rem; }
 .editor-leave-dialog div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 
-@media (max-width: 1120px) {
-  .editor-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(185px, .48fr); }
-  .editor-workspace[data-settings-open="false"] { grid-template-columns: minmax(0, 1fr); }
-  .editor-palette { grid-column: 1 / -1; }
-  .editor-palette-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
 @media (max-width: 700px) {
-  .editor-workspace { grid-template-columns: minmax(0, 1fr); }
   .editor-toolbar { align-items: flex-start; flex-direction: column; }
   .editor-toolbar-actions, .editor-save { justify-content: flex-start; }
   .editor-canvas { height: max(360px, 56svh); }
 }
 @media (max-width: 480px) {
-  .editor-palette-list { gap: 5px; }
-  .editor-palette-option { align-items: flex-start; flex-direction: column; }
   .editor-add-icon { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {

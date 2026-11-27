@@ -6,12 +6,16 @@ import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { DashboardSidebar } from '../components/dashboard/DashboardSidebar';
 import './dashboard.css';
 
-export type DashboardOutletContext = { setHasUnsavedChanges: (dirty: boolean) => void };
+export type DashboardOutletContext = {
+  setHasUnsavedChanges: (dirty: boolean) => void;
+  setEditorFocus: (focused: boolean) => void;
+};
 
 export function DashboardLayout() {
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [editorFocus, setEditorFocus] = useState(false);
   const reducedMotion = useReducedMotion();
   const drawer = useRef<HTMLDialogElement>(null);
 
@@ -32,7 +36,7 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="dashboard-shell">
+    <div className="dashboard-shell" data-editor-focus={editorFocus}>
       <a className="dashboard-skip-link" href="#dashboard-main">Skip to content</a>
       <motion.aside
         className="dashboard-sidebar"
@@ -55,7 +59,7 @@ export function DashboardLayout() {
       <div className="dashboard-body">
         <DashboardHeader user={user} hasUnsavedChanges={hasUnsavedChanges} onOpenNavigation={() => drawer.current?.showModal()} />
         <main className="dashboard-main" id="dashboard-main" tabIndex={-1}>
-          <Outlet context={{ setHasUnsavedChanges } satisfies DashboardOutletContext} />
+          <Outlet context={{ setHasUnsavedChanges, setEditorFocus } satisfies DashboardOutletContext} />
         </main>
       </div>
     </div>

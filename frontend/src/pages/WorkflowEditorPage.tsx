@@ -3,8 +3,8 @@ import {
   type OnEdgesChange, type OnNodesChange, type XYPosition,
 } from '@xyflow/react';
 import { isAxiosError } from 'axios';
-import { ArrowLeft, Check, CircleAlert, Grid2X2, LoaderCircle, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Redo2, Save, Undo2 } from 'lucide-react';
-import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, CircleAlert, Grid2X2, LoaderCircle, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Play, Redo2, Save, Undo2 } from 'lucide-react';
+import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { Link, useBlocker, useOutletContext, useParams } from 'react-router-dom';
 import { authError, readSession } from '../auth/api';
 import { WorkflowStatusBadge } from '../components/dashboard/WorkflowStatusBadge';
@@ -13,14 +13,26 @@ import {
   type ConnectionEndpoints, type EditorEdge, type EditorGraph, type EditorNode, type NodeKind,
 } from '../components/workflow-editor/graph';
 import { WorkflowCanvas } from '../components/workflow-editor/WorkflowCanvas';
+import { CanvasExecutionContext, type ExecutionPanelState } from '../components/workflow-editor/executionPresentation';
+import { EditorDock, InspectorResize, InspectorTabs } from '../components/workflow-editor/EditorDock';
+import { WorkflowExecutionInspector, WorkflowRunDialog } from '../components/workflow-editor/WorkflowExecutionPanels';
 import { NodeInspector, NodePalette } from '../components/workflow-editor/WorkflowPanels';
 import { useGraphHistory } from '../components/workflow-editor/useGraphHistory';
 import type { DashboardOutletContext } from '../layouts/DashboardLayout';
 import { getWorkflow, updateWorkflow, type Workflow } from '../services/workflowApi';
+import { runWorkflow, workflowRunError, type WorkflowJson } from '../services/workflowExecution';
 import './workflowEditor.css';
+import './workflowExecution.css';
 
 const workflowsPath = '/dashboard/workflows';
 const interruptedDrafts = new Map<string, { ownerId: string; graph: EditorGraph }>();
+const compactEditor = '(max-width: 1249px)';
+const getCompactEditor = () => window.matchMedia(compactEditor).matches;
+function subscribeCompactEditor(update: () => void) {
+  const media = window.matchMedia(compactEditor);
+  media.addEventListener('change', update);
+  return () => media.removeEventListener('change', update);
+}
 
 function LeaveEditorDialog({ onStay, onLeave }: { onStay: () => void; onLeave: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -65,17 +77,49 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
     edges: workflow.edges,
   }));
   const [snap, setSnap] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  const compact = useSyncExternalStore(subscribeCompactEditor, getCompactEditor);
+  const [paletteDocked, setPaletteDocked] = useState(true);
+  const [inspectorDocked, setInspectorDocked] = useState(true);
+  const [drawer, setDrawer] = useState<'palette' | 'inspector' | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const [inspectorWidth, setInspectorWidth] = useState(310);
+  const [tab, setTab] = useState<'settings' | 'results'>('settings');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const runRequest = useRef<AbortController | null>(null);
+  const [runBusy, setRunBusy] = useState(false);
+  const [runDialog, setRunDialog] = useState(false);
+  const [runInput, setRunInput] = useState('{"text":"hello nexora"}');
+  const [execution, setExecution] = useState<ExecutionPanelState>();
+  const [inspectTarget, setInspectTarget] = useState<{ nodeId: string } | null>(null);
   const { screenToFlowPosition } = useReactFlow<EditorNode, EditorEdge>();
-  const { setHasUnsavedChanges } = useOutletContext<DashboardOutletContext>();
+  const { setHasUnsavedChanges, setEditorFocus } = useOutletContext<DashboardOutletContext>();
+  const paletteOverlay = compact || focusMode;
+  const paletteOpen = paletteOverlay ? drawer === 'palette' : paletteDocked;
+  const inspectorOpen = compact ? drawer === 'inspector' : inspectorDocked;
 
   const dirty = signature !== savedBaseline.signature;
+  const report = execution?.phase === 'report' ? execution.report : null;
+  const graphChanged = execution?.phase === 'report' && execution.signature !== signature;
+  const inspectNode = useCallback((nodeId: string) => {
+    setInspectTarget({ nodeId });
+    setTab('results');
+    if (compact) setDrawer('inspector');
+    else setInspectorDocked(true);
+  }, [compact]);
+  const canvasExecution = useMemo(() => report && !graphChanged ? {
+    statuses: new Map(report.nodes.map(node => [node.nodeId, node.status])),
+    inspect: inspectNode,
+  } : null, [report, graphChanged, inspectNode]);
   const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname);
 
   useLayoutEffect(() => { latestGraph.current = graph; }, [graph]);
+  useLayoutEffect(() => {
+    if (!focusMode) return;
+    setEditorFocus(true);
+    return () => setEditorFocus(false);
+  }, [focusMode, setEditorFocus]);
+  useEffect(() => () => runRequest.current?.abort(), []);
 
   useEffect(() => {
     if (recovered) interruptedDrafts.delete(workflow.id);
@@ -135,7 +179,7 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
     if (!bounds) return;
     const center = screenToFlowPosition({ x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height * .4 }, { snapToGrid: false });
     const origin = { x: center.x - 92, y: center.y - 34 };
-    const offsets = [[0, 0], [0, 100], [0, -100], [205, 0], [-205, 0], [205, 100], [-205, 100]] as const;
+    const offsets = [[0, 0], [0, 112], [0, -112], [226, 0], [-226, 0], [226, 112], [-226, 112]] as const;
     const spots = offsets.map(([x, y]) => ({ x: origin.x + x, y: origin.y + y }));
     const position = spots.find(spot => !graph.nodes.some(node =>
       Math.abs(node.position.x - spot.x) < 186 && Math.abs(node.position.y - spot.y) < 76,
@@ -159,7 +203,7 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
   const handleShortcuts = useEffectEvent((event: KeyboardEvent) => {
     if (blocker.state === 'blocked' || event.defaultPrevented || event.isComposing || !(event.target instanceof Element) ||
         (event.target !== document.body && !editorRef.current?.contains(event.target)) ||
-        event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="listbox"], dialog')) return;
+        event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="listbox"], dialog, .editor-execution-inspector')) return;
 
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -187,11 +231,11 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
   }, []);
 
   async function save() {
-    if (!dirty || saving.current) return;
+    if (!dirty || saving.current) return null;
     const prepared = prepareGraph(graphDraft(graph), savedBaseline.edges);
     if ('error' in prepared) {
       setError(prepared.error);
-      return;
+      return null;
     }
 
     saving.current = true;
@@ -199,25 +243,59 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
     setError('');
     try {
       const saved = await updateWorkflow(workflow.id, prepared.graph);
-      setSavedBaseline({
+      const baseline = {
         signature: graphSignature(graphDraft(hydrateGraph(saved))),
         edges: saved.edges,
-      });
+      };
+      setSavedBaseline(baseline);
       setShowRecoveryNotice(false);
+      return baseline.signature;
     } catch (error) {
       if (!discarded.current && isAxiosError(error) && error.response?.status === 401 && !readSession().user) {
         // AuthGate can leave the editor when refresh expires. Keep the draft in this tab for the same owner.
         interruptedDrafts.set(workflow.id, { ownerId: workflow.userId, graph: latestGraph.current });
       }
       setError(authError(error, 'Unable to save the workflow. Your changes are still here. Try again.').message);
+      return null;
     } finally {
       saving.current = false;
       setBusy(false);
     }
   }
 
+  async function startRun(input: WorkflowJson) {
+    if (runRequest.current || saving.current) return;
+    const controller = new AbortController();
+    runRequest.current = controller;
+    setRunBusy(true);
+    try {
+      const executedSignature = dirty ? await save() : savedBaseline.signature;
+      if (executedSignature === null || controller.signal.aborted) return;
+
+      setRunDialog(false);
+      setInspectTarget(null);
+      setTab('results');
+      if (!getCompactEditor()) setInspectorDocked(true);
+      setExecution({ phase: 'running' });
+      const result = await runWorkflow(workflow.id, input, controller.signal);
+      if (!controller.signal.aborted) showFinishedExecution({ phase: 'report', report: result, signature: executedSignature });
+    } catch (cause) {
+      if (!controller.signal.aborted) showFinishedExecution({ phase: 'error', message: workflowRunError(cause) });
+    } finally {
+      if (runRequest.current === controller) runRequest.current = null;
+      if (!controller.signal.aborted) setRunBusy(false);
+    }
+  }
+
+  function showFinishedExecution(result: Exclude<ExecutionPanelState, { phase: 'running' }>) {
+    setExecution(result);
+    setTab('results');
+    if (getCompactEditor()) setDrawer('inspector');
+    else setInspectorDocked(true);
+  }
+
   return (
-    <div className="workflow-editor" ref={editorRef}>
+    <div className="workflow-editor" ref={editorRef} data-focus-mode={focusMode}>
       <header className="editor-toolbar dashboard-surface">
         <div className="editor-title-group">
           <Link to={workflowsPath} className="editor-back"><ArrowLeft size={16} aria-hidden="true" /> My Workflows</Link>
@@ -236,38 +314,62 @@ function WorkflowEditor({ workflow, initialGraph }: { workflow: Workflow; initia
               <Grid2X2 size={15} aria-hidden="true" /> Snap
             </button><span role="tooltip" id={tooltips + '-snap'}>Align moved and new nodes to the grid</span></span>
             <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label={paletteOpen ? 'Hide node palette' : 'Show node palette'}
-              aria-expanded={paletteOpen} aria-controls="editor-node-palette" onClick={() => setPaletteOpen(!paletteOpen)}>
+              aria-expanded={paletteOpen} aria-controls="editor-node-palette"
+              onClick={() => paletteOverlay ? setDrawer(paletteOpen ? null : 'palette') : setPaletteDocked(!paletteDocked)}>
               {paletteOpen ? <PanelLeftClose size={17} aria-hidden="true" /> : <PanelLeftOpen size={17} aria-hidden="true" />}
             </button><span role="tooltip" aria-hidden="true">{paletteOpen ? 'Hide node palette' : 'Show node palette'}</span></span>
-            <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label={settingsOpen ? 'Hide settings' : 'Show settings'}
-              aria-expanded={settingsOpen} aria-controls="editor-node-settings" onClick={() => setSettingsOpen(!settingsOpen)}>
-              {settingsOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
-            </button><span role="tooltip" aria-hidden="true">{settingsOpen ? 'Hide settings' : 'Show settings'}</span></span>
+            <span className="editor-tool"><button type="button" className="editor-button editor-icon-button" aria-label={inspectorOpen ? 'Hide inspector' : 'Show inspector'}
+              aria-expanded={inspectorOpen} aria-controls="editor-inspector"
+              onClick={() => compact ? setDrawer(inspectorOpen ? null : 'inspector') : setInspectorDocked(!inspectorDocked)}>
+              {inspectorOpen ? <PanelRightClose size={17} aria-hidden="true" /> : <PanelRightOpen size={17} aria-hidden="true" />}
+            </button><span role="tooltip" aria-hidden="true">{inspectorOpen ? 'Hide inspector' : 'Show inspector'}</span></span>
+            <button type="button" className="editor-button" aria-pressed={focusMode} onClick={() => { setDrawer(null); setFocusMode(!focusMode); }}>
+              {focusMode ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
+              {focusMode ? 'Exit Focus Mode' : 'Focus Mode'}
+            </button>
           </div>
           <div className="editor-save">
             <span className="editor-save-state" data-dirty={dirty} role="status">
               {busy ? 'Saving changes...' : dirty ? 'Unsaved changes' : <><Check size={15} aria-hidden="true" /> Saved</>}
             </span>
-            <button type="button" className="editor-button editor-button-primary" disabled={!dirty || busy} onClick={save}>
+            <button type="button" className="editor-button editor-button-primary" disabled={!dirty || busy || runBusy} onClick={() => void save()}>
               {busy ? <LoaderCircle className="spinner" size={17} aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
               {busy ? 'Saving...' : 'Save workflow'}
+            </button>
+            <button type="button" className="editor-button editor-run-primary" disabled={runBusy || busy}
+              aria-haspopup="dialog" onClick={() => setRunDialog(true)}>
+              {runBusy ? <LoaderCircle className="spinner" size={17} aria-hidden="true" /> : <Play size={17} aria-hidden="true" />}
+              {execution?.phase === 'running' ? 'Running…' : 'Run Workflow'}
             </button>
           </div>
         </div>
       </header>
       {showRecoveryNotice && <p className="editor-alert editor-recovered" role="status">Recovered unsaved changes from before your session expired.</p>}
-      {error && <div className="editor-alert" role="alert"><CircleAlert size={18} aria-hidden="true" />{error}</div>}
-      <div className="editor-workspace" data-settings-open={settingsOpen}>
-        <NodePalette count={graph.nodes.length} onAdd={addFromPalette} hidden={!paletteOpen} />
-        <WorkflowCanvas canvasRef={canvasRef} graph={graph} snap={snap} onAdd={addNode}
-          onAddTrigger={() => addFromPalette('manualTrigger')}
-          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-          onConnect={connect} isValidConnection={connection => isValidConnection(connection, graph)} />
-        <NodeInspector graph={graph} hidden={!settingsOpen} onConnect={connect} onRemove={removeSelection} onFinishEdit={finishEdit}
-          onUpdate={updated => changeGraph(current => ({
-            ...current, nodes: current.nodes.map(node => node.id === updated.id ? { ...updated, position: node.position } : node),
-          }), updated.type === 'delay' ? { group: 'duration-' + updated.id } : {})} />
+      {error && !runDialog && <div className="editor-alert" role="alert"><CircleAlert size={18} aria-hidden="true" />{error}</div>}
+      <div className="editor-workspace" style={{ '--inspector-width': inspectorWidth + 'px' } as CSSProperties}>
+        <EditorDock id="editor-node-palette" label="Node palette" left overlay={paletteOverlay} open={paletteOpen} onClose={() => setDrawer(null)}>
+          <NodePalette count={graph.nodes.length} onAdd={kind => { addFromPalette(kind); if (paletteOverlay) setDrawer(null); }} />
+        </EditorDock>
+        <CanvasExecutionContext.Provider value={canvasExecution}>
+          <WorkflowCanvas canvasRef={canvasRef} graph={graph} snap={snap} onAdd={addNode}
+            onAddTrigger={() => addFromPalette('manualTrigger')}
+            onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+            onConnect={connect} isValidConnection={connection => isValidConnection(connection, graph)} />
+        </CanvasExecutionContext.Provider>
+        <EditorDock id="editor-inspector" label="Workflow inspector" overlay={compact} open={inspectorOpen} onClose={() => setDrawer(null)}>
+          {!compact && <InspectorResize width={inspectorWidth} onChange={setInspectorWidth} />}
+          <InspectorTabs tab={tab} onChange={next => { setInspectTarget(null); setTab(next); }}
+            settings={<NodeInspector graph={graph} onConnect={connect} onRemove={removeSelection} onFinishEdit={finishEdit}
+              onUpdate={updated => changeGraph(current => ({
+                ...current, nodes: current.nodes.map(node => node.id === updated.id ? { ...updated, position: node.position } : node),
+              }), updated.type === 'delay' ? { group: 'duration-' + updated.id } : {})} />}
+            results={<WorkflowExecutionInspector state={execution} workflowName={workflow.name} graphChanged={graphChanged}
+              unexecuted={report && !graphChanged ? Math.max(0, graph.nodes.length - report.nodes.length) : 0}
+              inspectTarget={inspectTarget} active={inspectorOpen && tab === 'results'} />} />
+        </EditorDock>
       </div>
+      {runDialog && <WorkflowRunDialog text={runInput} dirty={dirty} saving={runBusy} saveError={dirty ? error : ''}
+        onTextChange={setRunInput} onCancel={() => setRunDialog(false)} onRun={input => void startRun(input)} />}
       {blocker.state === 'blocked' && <LeaveEditorDialog onStay={blocker.reset} onLeave={() => {
         discarded.current = true;
         blocker.proceed();

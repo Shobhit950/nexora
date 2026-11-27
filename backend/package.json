@@ -4,7 +4,8 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "test": "npm run build && node --test dist/engine/__tests__/execution-engine.test.js",
+    "test": "npm run build && node --test dist/engine/__tests__/execution-engine.test.js dist/__tests__/workflow-run.test.js",
+    "test:integration": "npm run build && node --test dist/__tests__/workflow-run.integration.js",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "engine:demo": "npm run build && node dist/engine/examples/uppercase-delay.demo.js",

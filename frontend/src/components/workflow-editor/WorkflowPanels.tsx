@@ -11,10 +11,10 @@ const kinds = ['manualTrigger', 'transform', 'delay'] as const;
 const operationLabels = { trim: 'Trim whitespace', uppercase: 'Uppercase', lowercase: 'Lowercase' };
 const operationOptions = operations.map(value => ({ value, label: operationLabels[value] }));
 
-export function NodePalette({ count, hidden, onAdd }: { count: number; hidden: boolean; onAdd: (kind: NodeKind) => void }) {
+export function NodePalette({ count, onAdd }: { count: number; onAdd: (kind: NodeKind) => void }) {
   const disabled = count >= MAX_NODES;
   return (
-    <aside id="editor-node-palette" className="editor-panel editor-palette" aria-labelledby="editor-library-title" hidden={hidden}>
+    <section className="editor-panel editor-palette" aria-labelledby="editor-library-title">
       <div className="editor-panel-header"><h2 id="editor-library-title">Node palette</h2><span>{count}/{MAX_NODES}</span></div>
       <p className="editor-panel-hint">Drag or choose a node to add it.</p>
       <div className="editor-palette-list">
@@ -35,7 +35,7 @@ export function NodePalette({ count, hidden, onAdd }: { count: number; hidden: b
         })}
       </div>
       {disabled && <p className="editor-panel-hint">Node limit reached.</p>}
-    </aside>
+    </section>
   );
 }
 
@@ -65,9 +65,8 @@ function Connections({ node, graph, onConnect }: {
   );
 }
 
-export function NodeInspector({ graph, hidden, onUpdate, onConnect, onRemove, onFinishEdit }: {
+export function NodeInspector({ graph, onUpdate, onConnect, onRemove, onFinishEdit }: {
   graph: EditorGraph;
-  hidden: boolean;
   onFinishEdit: () => void;
   onUpdate: (node: EditorNode) => void;
   onConnect: (connection: ConnectionEndpoints) => void;
@@ -82,7 +81,7 @@ export function NodeInspector({ graph, hidden, onUpdate, onConnect, onRemove, on
   const invalidDuration = node?.type === 'delay' && parseDuration(node.data.durationMs) === null;
 
   return (
-    <aside id="editor-node-settings" className="editor-panel editor-inspector" aria-labelledby="editor-settings-title" hidden={hidden}>
+    <section className="editor-panel editor-inspector" aria-labelledby="editor-settings-title">
       <div className="editor-panel-header"><h2 id="editor-settings-title">Settings</h2><SlidersHorizontal size={16} aria-hidden="true" /></div>
       {node ? <>
         <div className="editor-settings-node">
@@ -124,6 +123,6 @@ export function NodeInspector({ graph, hidden, onUpdate, onConnect, onRemove, on
           <Trash2 size={16} aria-hidden="true" />{node ? 'Delete node' : edge ? 'Delete connection' : 'Delete selected'}
         </button>
       )}
-    </aside>
+    </section>
   );
 }

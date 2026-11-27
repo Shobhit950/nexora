@@ -1,14 +1,27 @@
 import type { ErrorRequestHandler, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import type { ExecutionError } from '../engine/execution.types';
 import type { AuthLocals } from '../middleware/require-auth';
 import {
   createWorkflow, deleteWorkflow, getWorkflow, InvalidWorkflowGraphError, listWorkflows, updateWorkflow,
 } from '../services/workflow.service';
+import { runWorkflow } from '../services/workflow-run.service';
+import { runWorkflowSchema } from '../validators/workflow-run.validator';
 import {
   createWorkflowSchema, listWorkflowsSchema, updateWorkflowSchema, workflowParamsSchema,
 } from '../validators/workflow.validator';
 
 type AuthResponse = Response<unknown, AuthLocals>;
+
+const runErrorStatus: Record<ExecutionError['code'], number> = {
+  INVALID_INPUT: 400,
+  INVALID_TRANSFORM_INPUT: 400,
+  INVALID_GRAPH: 422,
+  TIMEOUT: 504,
+  ABORTED: 200,
+  INVALID_TIMEOUT: 500,
+  NODE_EXECUTION_FAILED: 500,
+};
 
 export async function createWorkflowController(req: Request, res: AuthResponse) {
   const workflow = await createWorkflow(res.locals.userId, createWorkflowSchema.parse(req.body));
@@ -37,6 +50,28 @@ export async function updateWorkflowController(req: Request, res: AuthResponse) 
     return;
   }
   res.json(workflow);
+}
+
+export async function runWorkflowController(req: Request, res: AuthResponse) {
+  res.set('Cache-Control', 'no-store');
+  const { id } = workflowParamsSchema.parse(req.params);
+  const { input } = runWorkflowSchema.parse(req.body);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  res.once('close', abort);
+
+  try {
+    const report = await runWorkflow(res.locals.userId, id, input, controller.signal);
+    if (res.destroyed) return;
+    if (!report) {
+      res.status(404).json({ error: 'Workflow not found' });
+      return;
+    }
+
+    res.status(report.status === 'success' ? 200 : runErrorStatus[report.error.code]).json(report);
+  } finally {
+    res.off('close', abort);
+  }
 }
 
 export async function deleteWorkflowController(req: Request, res: AuthResponse) {

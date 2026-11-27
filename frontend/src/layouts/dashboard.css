@@ -21,6 +21,8 @@ html:has(.dashboard-shell) { scrollbar-color: #594372 #100d1b; }
 
 .dashboard-body, .dashboard-main { min-width: 0; }
 .dashboard-main { width: min(100%, 1400px); margin-inline: auto; padding: 32px clamp(24px, 3vw, 48px) 48px; }
+.dashboard-shell[data-editor-focus="true"] { grid-template-columns: minmax(0, 1fr); }
+.dashboard-shell[data-editor-focus="true"] .dashboard-sidebar { display: none; }
 .dashboard-shell :is(a, button, [tabindex="0"]):focus-visible { outline: 2px solid #ccb2fb; outline-offset: 3px; }
 .dashboard-skip-link { position: fixed; z-index: 5; top: 12px; left: 12px; padding: 10px 14px; border-radius: 8px; background: #3f2770; transform: translateY(-160%); }
 .dashboard-skip-link:focus { transform: translateY(0); }
