@@ -15,6 +15,13 @@
       "when": 1795325376906,
       "tag": "0001_add_workflows",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795848556617,
+      "tag": "0002_add_execution_history",
+      "breakpoints": true
     }
   ]
 }

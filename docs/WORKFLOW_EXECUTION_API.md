@@ -64,3 +64,41 @@ Run these from `backend`.
 
 - `npm test` builds the backend and runs the Phase 3A engine tests and HTTP tests with a mocked database lookup. It uses the real JWT middleware and execution engine.
 - `npm run test:integration` requires the configured, migrated development PostgreSQL database. It creates isolated test accounts, saves and runs a draft through the API, verifies ownership and existing workflow CRUD and session routes, and removes its fixtures.
+
+## Execution history storage
+
+Migration `0002_add_execution_history.sql` defines the storage for completed execution reports. The current run endpoint returns its report directly. A later phase will persist the execution row and its ordered steps together in one transaction.
+
+| Execution field | Purpose |
+| --- | --- |
+| `id` | Database-generated UUID for the run. |
+| `userId` | Required owner UUID. User deletion cascades to that user's runs and steps. |
+| `workflowId` | Link to the saved workflow. Workflow deletion sets it to null and preserves history. |
+| `workflowNameSnapshot` | Name captured at execution time, retained across renames and deletion. |
+| `status` | `success`, `failed`, or `cancelled`, from the engine report. |
+| `input`, `output` | Redacted JSONB markers for the run input and available final output. Failed and cancelled runs have SQL null output. |
+| `errorCode`, `errorMessage` | Engine error code and fixed, safe message for unsuccessful runs. Both are null on success. |
+| `startedAt`, `finishedAt` | Engine start and finish times as timestamps with time zone. |
+| `durationMs` | Engine-measured elapsed milliseconds, including fractional precision. |
+| `createdAt` | Database insertion time used for retention. |
+
+| Step field | Purpose |
+| --- | --- |
+| `id`, `executionId` | Database-generated step UUID and required parent run UUID. Deleting the run deletes its steps. |
+| `nodeId`, `nodeType` | Identify the node that ran and the executor used. |
+| `stepOrder` | Zero-based position in the engine report. Unique within a run. |
+| `status`, `input`, `output` | Node outcome and redacted JSONB markers. Output is SQL null when the step failed or was cancelled. |
+| `errorCode`, `errorMessage` | Safe error details for unsuccessful steps. |
+| `startedAt`, `finishedAt`, `durationMs` | Timing measured for that node. |
+
+### Privacy and payload limits
+
+Phase 3 accepts ordinary JSON, including free-form text and nested metadata. A token or password can appear under any key or as a top-level value. The history mapper stores only markers such as `{"type":"object","redacted":true}`. The marker has a fixed shape with six allowed types, at most 34 bytes in compact JSON. The database checks enforce that shape. A successful JSON null value has its own marker. The mapper also caps a report at 100 steps and looks up stored error messages by error code. Exception text, graph issue details, and raw payloads stay out of the history record.
+
+Use workflow names and node IDs as non-secret labels. The name snapshot and node identifiers preserve those labels as supplied by the saved workflow. The storage mapper takes the authenticated owner's UUID and never needs authorization headers, JWTs, refresh tokens, or integration credentials. Future node integrations should keep credentials in dedicated secret storage and preserve the marker policy for arbitrary payloads. Any richer history fields should come from a reviewed allowlist of bounded, non-secret metadata.
+
+### Ownership and retention
+
+Every history list or detail query must scope by the authenticated user's UUID. Authorize step reads through the owner-scoped execution row. A persistence implementation should derive the owner and workflow IDs from the existing authenticated run and handle workflow deletion during a run. Execution indexes cover newest-first lists, workflow and status filters, and owner-scoped time ranges for chart counts and duration summaries. The unique step index supports ordered retrieval and the `createdAt` index supports expiry jobs.
+
+Choose a retention period before enabling history writes. Delete expired executions in batches so their steps cascade. Any aggregate charts that need a longer window can retain owner-scoped counts and duration summaries under a separate policy. Account deletion should also be reflected in backups and derived data according to the deployment's retention policy.
